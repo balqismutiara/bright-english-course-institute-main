@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 
-const child = spawn(process.execPath, ['--loader', 'tsx', 'server.ts'], {
+const child = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], {
   stdio: 'inherit',
 });
 
