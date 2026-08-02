@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import bcrypt from 'bcryptjs';
 import { pool } from './server/db';
@@ -526,8 +527,14 @@ app.post('/api/admin/reports', async (req, res) => {
 });
 
 
+  // Determine mode: dev only when NODE_ENV=development OR when dist/ is missing.
+  // This prevents the Vite dev middleware (and its esbuild binary) from running
+  // on production hosts where NODE_ENV may not be set.
+  const distDir = path.join(__dirname, "dist");
+  const isDev = process.env.NODE_ENV === "development" || (!process.env.NODE_ENV && !fs.existsSync(distDir));
+
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (isDev) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -535,7 +542,7 @@ app.post('/api/admin/reports', async (req, res) => {
     app.use(vite.middlewares);
   } else {
     // Serve static files in production
-    app.use(express.static(path.join(__dirname, "dist")));
+    app.use(express.static(distDir));
   }
 
   // SPA fallback for client-side routes (e.g. /about, /services)
@@ -544,9 +551,9 @@ app.post('/api/admin/reports', async (req, res) => {
       return next();
     }
 
-    const indexPath = process.env.NODE_ENV === 'production'
-      ? path.join(__dirname, 'dist', 'index.html')
-      : path.join(__dirname, 'index.html');
+    const indexPath = isDev
+      ? path.join(__dirname, 'index.html')
+      : path.join(distDir, 'index.html');
 
     res.sendFile(indexPath);
   });
