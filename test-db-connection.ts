@@ -2,7 +2,7 @@ import 'dotenv/config';
 import mysql from 'mysql2/promise';
 
 const requiredEnv = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+const missingEnv = requiredEnv.filter((key) => process.env[key] === undefined);
 
 if (missingEnv.length > 0) {
   console.error(`Environment belum lengkap. Yang belum diisi: ${missingEnv.join(', ')}`);

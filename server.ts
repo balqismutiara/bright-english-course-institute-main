@@ -2,10 +2,9 @@ import 'dotenv/config';
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
-import bcrypt from 'bcryptjs';
-import { pool } from './server/db.js';
+import bcrypt from 'bcrypt';
+import { pool } from './server/db';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +18,22 @@ async function startServer() {
 // API routes
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get('/api/db-check', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({
+      success: true,
+      message: 'Terhubung ke database',
+    });
+  } catch (error) {
+    console.error('Database connection check failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Tidak dapat terhubung ke database',
+    });
+  }
 });
 
 app.get("/api/message", (req, res) => {
@@ -527,16 +542,8 @@ app.post('/api/admin/reports', async (req, res) => {
 });
 
 
-  // Determine mode: dev only when NODE_ENV=development OR when dist/ is missing.
-  // This prevents the Vite dev middleware (and its esbuild binary) from running
-  // on production hosts where NODE_ENV may not be set.
-  const isCompiled = __dirname.endsWith('dist-server');
-  const rootDir = isCompiled ? path.resolve(__dirname, '..') : __dirname;
-  const distDir = path.join(rootDir, "dist");
-  const isDev = process.env.NODE_ENV === "development" || (!process.env.NODE_ENV && !fs.existsSync(distDir));
-
   // Vite middleware for development
-  if (isDev) {
+  if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -544,7 +551,7 @@ app.post('/api/admin/reports', async (req, res) => {
     app.use(vite.middlewares);
   } else {
     // Serve static files in production
-    app.use(express.static(distDir));
+    app.use(express.static(path.join(__dirname, "dist")));
   }
 
   // SPA fallback for client-side routes (e.g. /about, /services)
@@ -553,9 +560,9 @@ app.post('/api/admin/reports', async (req, res) => {
       return next();
     }
 
-    const indexPath = isDev
-      ? path.join(rootDir, 'index.html')
-      : path.join(distDir, 'index.html');
+    const indexPath = process.env.NODE_ENV === 'production'
+      ? path.join(__dirname, 'dist', 'index.html')
+      : path.join(__dirname, 'index.html');
 
     res.sendFile(indexPath);
   });

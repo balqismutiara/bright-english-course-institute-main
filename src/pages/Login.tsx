@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, UserCircle, GraduationCap, ShieldCheck } from 'lucide-react';
 import { UserRole } from '../types';
-import { apiPost } from '../lib/api';
+import { apiGet, apiPost } from '../lib/api';
 
 type SessionAccount = {
   id: number;
@@ -20,6 +20,8 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState<UserRole>('student');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isCheckingDb, setIsCheckingDb] = useState(false);
+  const [dbConnectionStatus, setDbConnectionStatus] = useState('');
 
   const navigate = useNavigate();
 
@@ -81,6 +83,25 @@ export default function Login() {
       setError('Terjadi kesalahan saat login');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkDatabaseConnection = async () => {
+    setDbConnectionStatus('');
+    setIsCheckingDb(true);
+
+    try {
+      const response = await apiGet('/api/db-check');
+      if (response.success) {
+        setDbConnectionStatus(response.message || 'Terhubung ke database');
+      } else {
+        setDbConnectionStatus(response.message || 'Tidak dapat terhubung ke database');
+      }
+    } catch (err) {
+      console.error('Database check error:', err);
+      setDbConnectionStatus('Gagal memeriksa koneksi database');
+    } finally {
+      setIsCheckingDb(false);
     }
   };
 
@@ -186,10 +207,21 @@ export default function Login() {
 
         <p className="mt-8 text-center text-sm text-slate-500">
           Belum punya akun?{' '}
-          <span className="text-blue-600 font-bold cursor-pointer hover:underline">
-            Hubungi Admin
-          </span>
+          <button
+            type="button"
+            onClick={checkDatabaseConnection}
+            disabled={isCheckingDb}
+            className="text-blue-600 font-bold hover:underline disabled:opacity-50"
+          >
+            {isCheckingDb ? 'Memeriksa koneksi...' : 'Hubungi Admin'}
+          </button>
         </p>
+
+        {dbConnectionStatus && (
+          <div className="mt-4 bg-slate-50 text-slate-700 p-4 rounded-xl border border-slate-200 text-sm text-center">
+            {dbConnectionStatus}
+          </div>
+        )}
       </motion.div>
     </div>
   );
