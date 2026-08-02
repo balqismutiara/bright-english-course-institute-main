@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, role ('admin', 'student')
+    //
+    // Collection: registrations
+    // Fields: name, email, level, schedule, status, createdAt
+    //
+    // Collection: reports
+    // Fields: studentId, studentName, gpa, attendance, feedback, updatedAt
+    //
+    // Collection: courses
+    // Fields: title, description, price, level
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "valentino.aris@unm.ac.id" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'student', 'teacher'];
+    }
+
+    function isValidRegistration(data) {
+      return data.keys().hasAll(['name', 'email', 'level', 'schedule', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() < 100 &&
+             data.email is string &&
+             data.status in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['studentId', 'gpa', 'attendance', 'feedback', 'updatedAt']) &&
+             data.studentId is string &&
+             data.gpa is number &&
+             data.attendance is number &&
+             data.feedback is string && data.feedback.size() < 2000;
+    }
+
+    // Rules
+    
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    match /registrations/{regId} {
+      allow read: if isAdmin();
+      allow create: if isValidRegistration(request.resource.data);
+      allow update: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.studentId);
+      allow create, update: if isAdmin() && isValidReport(request.resource.data);
+    }
+
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
