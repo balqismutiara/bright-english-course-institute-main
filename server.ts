@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import bcrypt from 'bcryptjs';
-import { pool } from './server/db';
+import { pool } from './server/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -530,7 +530,9 @@ app.post('/api/admin/reports', async (req, res) => {
   // Determine mode: dev only when NODE_ENV=development OR when dist/ is missing.
   // This prevents the Vite dev middleware (and its esbuild binary) from running
   // on production hosts where NODE_ENV may not be set.
-  const distDir = path.join(__dirname, "dist");
+  const isCompiled = __dirname.endsWith('dist-server');
+  const rootDir = isCompiled ? path.resolve(__dirname, '..') : __dirname;
+  const distDir = path.join(rootDir, "dist");
   const isDev = process.env.NODE_ENV === "development" || (!process.env.NODE_ENV && !fs.existsSync(distDir));
 
   // Vite middleware for development
@@ -552,7 +554,7 @@ app.post('/api/admin/reports', async (req, res) => {
     }
 
     const indexPath = isDev
-      ? path.join(__dirname, 'index.html')
+      ? path.join(rootDir, 'index.html')
       : path.join(distDir, 'index.html');
 
     res.sendFile(indexPath);
