@@ -3,7 +3,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from './server/db';
 
 const __filename = fileURLToPath(import.meta.url);
